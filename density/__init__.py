@@ -11,11 +11,15 @@ import psycopg2
 import psycopg2.extras
 import psycopg2.pool
 import pandas as pd
+from bokeh.resources import CDN
 
+from . import graphics
 from . import db
-from .predict import db_to_pandas, df_predict, get_historical_means, db_to_pandas_pivot
+from .predict import db_to_pandas#, df_predict, get_historical_means, db_to_pandas_pivot
 from .config import config, ISO8601Encoder
 from .data import FULL_CAP_DATA
+
+
 
 app = Flask(__name__)
 
@@ -169,6 +173,7 @@ def auth():
 
     # Get code from params.
     code = request.args.get('code')
+    print(code)
     if not code:
         return render_template('auth.html', success=False)
 
@@ -176,9 +181,13 @@ def auth():
         # Exchange code for email address.
         # Get Google+ ID.
         oauth_flow = flow_from_clientsecrets('client_secrets.json', scope='')
+        print(oauth_flow)
+        print("trying")
         oauth_flow.redirect_uri = 'postmessage'
         credentials = oauth_flow.step2_exchange(code)
+        print(credentials)
         gplus_id = credentials.id_token['sub']
+        print(gplus_id)
 
         # Get first email address from Google+ ID.
         http = httplib2.Http()
@@ -187,6 +196,7 @@ def auth():
         h, content = http.request(
             'https://www.googleapis.com/plus/v1/people/' + gplus_id, 'GET')
         data = json.loads(content)
+        print(data)
         email = data["emails"][0]["value"]
 
         # Verify email is valid.
@@ -397,12 +407,12 @@ def map():
 
 @app.route('/predict')
 def predict():
-    imported_data = db_to_pandas_pivot(g.pg_conn)
-    lerner_2 = pd.Series(imported_data[['Lerner 2']])
-    predicted = df_predict(lerner_2, lerner_2.index)
-    print(predicted)
-    
-    return render_template('predict.html')
+    # imported_data = db_to_pandas_pivot(g.pg_conn)
+    # lerner_2 = pd.Series(imported_data[['Lerner 2']])
+    # predicted = df_predict(lerner_2, lerner_2.index)
+    # print(predicted)
+    script, divs = graphics.create_all_buildings(graphics.phony_data())
+    return render_template('predict.html',divs=divs,script=script, css_script=CDN.render_js())
 
 @app.route('/upload', methods=['POST'])
 def upload():
